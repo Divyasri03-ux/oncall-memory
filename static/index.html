@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OnCall Memory - Incident Response Agent | Northwind Pay</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body class="dark-theme">
+  <!-- Top Navigation Header -->
+  <header class="app-header">
+    <div class="header-left">
+      <div class="brand-badge">
+        <span class="brand-icon">⚡</span>
+        <div>
+          <h1 class="brand-title">OnCall Memory</h1>
+          <span class="brand-subtitle">Northwind Pay &bull; Self-Learning Production SRE</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="header-center">
+      <!-- Live Hindsight Memory Status Widget -->
+      <div class="memory-status-badge" id="memoryStatusWidget">
+        <span class="status-indicator-dot pulse"></span>
+        <span class="bank-name">Bank: <strong id="bankIdDisplay">northwind-oncall</strong></span>
+        <span class="divider">|</span>
+        <span class="memory-count-label">Memories: <strong id="memoryCountDisplay" class="count-highlight">...</strong></span>
+      </div>
+    </div>
+
+    <div class="header-right">
+      <button class="btn btn-outline" id="btnExploreBank" title="Inspect all stored incident memories">
+        <span class="icon">📚</span> Memory Bank
+      </button>
+      <button class="btn btn-reflect" id="btnSystemicInsights" title="Synthesize systemic patterns across incidents using Hindsight Reflect">
+        <span class="icon">💡</span> Systemic Insights
+      </button>
+      <button class="btn btn-demo" id="btnToggleDemoMode" title="Launch guided 3-step hackathon judge demo">
+        <span class="icon">🎯</span> Demo Mode
+      </button>
+    </div>
+  </header>
+
+  <!-- Guided 3-Step Demo Banner (Toggled in Demo Mode) -->
+  <section class="demo-banner" id="demoBanner" style="display: none;">
+    <div class="demo-banner-content">
+      <div class="demo-stepper">
+        <div class="demo-step active" id="demoStep1Indicator" onclick="loadDemoStep(1)">
+          <span class="step-num">1</span>
+          <span class="step-label">Initial Alert</span>
+        </div>
+        <div class="demo-step-line"></div>
+        <div class="demo-step" id="demoStep2Indicator" onclick="loadDemoStep(2)">
+          <span class="step-num">2</span>
+          <span class="step-label">Cross-Symptom Recall</span>
+        </div>
+        <div class="demo-step-line"></div>
+        <div class="demo-step" id="demoStep3Indicator" onclick="loadDemoStep(3)">
+          <span class="step-num">3</span>
+          <span class="step-label">Learning from Failure</span>
+        </div>
+      </div>
+      <div class="demo-desc" id="demoStepDescription">
+        <strong>Step 1:</strong> Examine a Postgres pool exhaustion alert. Compare how generic LLM gives textbook answers while Hindsight cites exact past post-mortems.
+      </div>
+      <div class="demo-controls">
+        <button class="btn btn-sm btn-primary" id="btnRunDemoStep">Load & Run Step</button>
+        <button class="btn btn-sm btn-outline" id="btnNextDemoStep">Next Step &rarr;</button>
+        <button class="btn btn-sm btn-ghost" id="btnCloseDemo">Exit Demo</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Main Work Area -->
+  <main class="main-container">
+    <!-- Incident Input & Triggers -->
+    <section class="incident-input-card">
+      <div class="card-header">
+        <div class="header-title-group">
+          <h2>Production Incident Diagnostics</h2>
+          <p class="section-desc">Paste an incoming alert and stack trace, or trigger a sample incident to observe side-by-side recall.</p>
+        </div>
+
+        <!-- 3 One-Click Sample Triggers -->
+        <div class="sample-pills-group">
+          <span class="pills-label">1-Click Scenarios:</span>
+          <button class="pill-btn" data-sample="sample-1">
+            <span class="pill-dot red"></span> Postgres Pool Exhaustion
+          </button>
+          <button class="pill-btn" data-sample="sample-2">
+            <span class="pill-dot amber"></span> Stripe/Adyen 429 Rate Limit
+          </button>
+          <button class="pill-btn" data-sample="sample-3">
+            <span class="pill-dot blue"></span> Kafka Poison Pill Lag
+          </button>
+        </div>
+      </div>
+
+      <div class="card-body">
+        <div class="form-row">
+          <div class="form-group flex-1">
+            <label for="inputAlert">Alert Title / Summary</label>
+            <input type="text" id="inputAlert" class="input-text" placeholder="e.g. P1 ALERT: Checkout Service HTTP 500 Spike & Connection Pool Starvation" />
+          </div>
+          <div class="form-group service-select-group">
+            <label for="selectService">Target Service</label>
+            <select id="selectService" class="select-dropdown">
+              <option value="checkout-service">checkout-service</option>
+              <option value="payment-gateway">payment-gateway</option>
+              <option value="settlement-pipeline">settlement-pipeline</option>
+              <option value="auth-api">auth-api</option>
+              <option value="ledger-db">ledger-db</option>
+              <option value="fraud-detector">fraud-detector</option>
+              <option value="notification-worker">notification-worker</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <div class="label-with-hint">
+            <label for="inputLogs">Error Logs & Stack Traces</label>
+            <span class="code-hint">Paste raw container stderr, psql logs, or APM traces</span>
+          </div>
+          <textarea id="inputLogs" class="input-textarea code-font" rows="5" placeholder="[checkout-service] ERROR django.db.utils.OperationalError: FATAL: remaining connection slots are reserved..."></textarea>
+        </div>
+
+        <div class="action-bar">
+          <button class="btn btn-primary btn-lg glow" id="btnAnalyze">
+            <span class="btn-icon">⚡</span> Run Side-by-Side Analysis
+          </button>
+          <button class="btn btn-outline" id="btnClear">Clear</button>
+          <div class="analysis-status" id="analysisStatus" style="display: none;">
+            <div class="spinner"></div>
+            <span>Recalling Hindsight memories & running dual inference...</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Side-by-Side Comparison Grid (The Centerpiece of Demo) -->
+    <section class="side-by-side-grid" id="comparisonGrid">
+      <!-- LEFT: Plain LLM Without Memory -->
+      <div class="comparison-column left-column" id="colWithoutMemory">
+        <div class="column-header">
+          <div class="col-title-badge neutral">
+            <span class="badge-icon">⚪</span>
+            <div>
+              <h3>Without Memory</h3>
+              <span class="badge-sub">Generic LLM &bull; Textbook Advice</span>
+            </div>
+          </div>
+          <div class="column-meta">
+            <span class="meta-tag" id="latencyWithout">Latency: --</span>
+            <span class="meta-tag zero-citations">Citations: 0</span>
+          </div>
+        </div>
+
+        <div class="column-content" id="contentWithoutMemory">
+          <div class="empty-state">
+            <div class="empty-icon">🔍</div>
+            <p>Awaiting alert analysis. Run analysis to compare generic LLM recommendations against Hindsight memory.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- RIGHT: With Hindsight Memory -->
+      <div class="comparison-column right-column highlight-column" id="colWithMemory">
+        <div class="column-header">
+          <div class="col-title-badge primary-glow">
+            <span class="badge-icon">🧠</span>
+            <div>
+              <h3>With Hindsight Memory</h3>
+              <span class="badge-sub">Organizational Intelligence &bull; Historical Recall</span>
+            </div>
+          </div>
+          <div class="column-meta">
+            <span class="recalled-badge" id="recalledCountBadge">
+              <span class="pulse-dot"></span> Recalled from 3 past incidents
+            </span>
+            <span class="meta-tag" id="latencyWith">Latency: --</span>
+          </div>
+        </div>
+
+        <div class="column-content" id="contentWithMemory">
+          <div class="empty-state">
+            <div class="empty-icon">✨</div>
+            <p>Hindsight memory bank ready. Recalls similar root causes, who fixed them, exact queries, and traps to avoid.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Feedback Loop Section (Learning System) -->
+    <section class="feedback-card" id="feedbackSection" style="display: none;">
+      <div class="feedback-header">
+        <div class="feedback-title-group">
+          <span class="feedback-icon">🔄</span>
+          <div>
+            <h3>On-Call Feedback Loop & Continuous Learning</h3>
+            <p class="section-desc">Record your actual outcome to retain this live experience into Hindsight. The agent will remember this for future on-call responders.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="feedback-body">
+        <div class="feedback-buttons-row">
+          <button class="feedback-toggle-btn active-success" id="btnFeedbackSuccess" data-status="SUCCESS">
+            <span class="icon">✅</span> Fix Worked As Expected
+          </button>
+          <button class="feedback-toggle-btn" id="btnFeedbackFailed" data-status="FAILED">
+            <span class="icon">❌</span> Fix Failed / Harmed System
+          </button>
+        </div>
+
+        <div class="form-group mt-3">
+          <label for="inputResolutionNotes">What actually resolved the incident? (Or why did the fix fail?)</label>
+          <textarea id="inputResolutionNotes" class="input-textarea code-font" rows="2" placeholder="e.g. Identified leaked coroutine in cart audit webhook. Terminated idle connections and deployed pgbouncer pool patch."></textarea>
+        </div>
+
+        <div class="action-bar-end">
+          <button class="btn btn-primary" id="btnSubmitFeedback">
+            <span>💾</span> Retain Resolution in Hindsight Bank
+          </button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Systemic Insights Modal (Reflect) -->
+  <div class="modal-backdrop" id="modalInsights" style="display: none;">
+    <div class="modal-card">
+      <div class="modal-header">
+        <div class="modal-title-group">
+          <span class="modal-icon">💡</span>
+          <div>
+            <h3>Hindsight Reflect: Systemic Reliability Audit</h3>
+            <span class="modal-subtitle">Autonomous agentic exploration across all retained incidents</span>
+          </div>
+        </div>
+        <button class="btn-close" id="btnCloseInsights">&times;</button>
+      </div>
+      <div class="modal-body" id="insightsContent">
+        <div class="loading-container">
+          <div class="spinner"></div>
+          <p>Running Hindsight Reflect with high exploration budget across 25 production memories...</p>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" id="btnExportInsights">Copy Audit Summary</button>
+        <button class="btn btn-primary" id="btnCloseInsightsFooter">Done</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Memory Bank Explorer Modal -->
+  <div class="modal-backdrop" id="modalBankExplorer" style="display: none;">
+    <div class="modal-card modal-lg">
+      <div class="modal-header">
+        <div class="modal-title-group">
+          <span class="modal-icon">📚</span>
+          <div>
+            <h3>Hindsight Memory Bank Explorer</h3>
+            <span class="modal-subtitle">Bank: <strong id="explorerBankName">northwind-oncall</strong> &bull; <span id="explorerTotalMemories">25</span> Incident Memories</span>
+          </div>
+        </div>
+        <button class="btn-close" id="btnCloseExplorer">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="explorer-filter-bar">
+          <input type="text" id="filterBankInput" class="input-text" placeholder="Search by service, engineer, error keyword..." />
+        </div>
+        <div class="memories-table-container">
+          <table class="memories-table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Service</th>
+                <th>Incident Title</th>
+                <th>Engineer</th>
+                <th>MTTR</th>
+                <th>Outcome</th>
+              </tr>
+            </thead>
+            <tbody id="memoriesTableBody">
+              <!-- Rendered via JS -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-primary" id="btnCloseExplorerFooter">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification Stack -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
